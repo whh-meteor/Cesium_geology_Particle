@@ -1,5 +1,7 @@
 <template>
-  <div id="cesiumContainer"></div>
+  <div>
+    <div id="cesiumContainer"></div>
+  </div>
 </template>
 
 <script>
@@ -9,6 +11,8 @@ import { Particle3D, Vortex } from 'cesium-particle'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import * as Cesium from 'cesium'
 import * as dat from 'dat.gui'
+import TIFFImageryProvider from 'tiff-imagery-provider'
+import proj4 from 'proj4'
 export default {
   name: 'CesiumViewer',
   data() {
@@ -18,6 +22,7 @@ export default {
   },
   mounted() {
     this.init()
+    this.addGeojson()
   },
   methods: {
     //初始化地图
@@ -51,19 +56,84 @@ export default {
           maximumLevel: 16
         })
       })
+      this.viewer.scene.globe.depthTestAgainstTerrain = true
+      this.viewer.scene.screenSpaceCameraController.minimumZoomDistance = -1000
+      this.viewer.scene.camera.constrainedAxis = Cesium.Cartesian3.UNIT_Z
+      this.viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(
+          122.296063,
+          32.55245,
+          2000000
+        ),
+        orientation: {
+          heading: Cesium.Math.toRadians(0),
+          pitch: Cesium.Math.toRadians(-90),
+          roll: 0.0
+        },
+        duration: 1
+      })
       // this.loadParticle('/nc/5_mask_result_00.nc')
       // this.loadParticle('/nc/5_mask_result_01.nc')
       // this.loadParticle('/nc/5_mask_result_02.nc')
       // this.loadParticle('/nc/5_mask_result_03.nc')
-      this.loadParticle('/nc/5_mask_result_04.nc')
+      this.loadParticle('/nc/5_mask_result_00.nc')
       // this.useTranslucencyMask()
     },
+    //点击获取粒子值
+    addClickHandler(data) {
+      var viewer = this.viewer
+      // 初始化事件处理器
+      var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
+      // 监听鼠标点击事件
+
+      handler.setInputAction(function (click) {
+        console.log(click.position)
+        var cartesian = viewer.scene.pickPosition(click.position)
+        console.log(cartesian)
+        if (Cesium.defined(cartesian)) {
+          var cartographic = Cesium.Cartographic.fromCartesian(cartesian)
+          var lon = Cesium.Math.toDegrees(cartographic.longitude)
+          var lat = Cesium.Math.toDegrees(cartographic.latitude)
+
+          // 判断点击位置是否在数据范围内
+          if (
+            lon >= data.lon.min &&
+            lon <= data.lon.max &&
+            lat >= data.lat.min &&
+            lat <= data.lat.max
+          ) {
+            // 根据经纬度计算索引
+            var lonIndex = Math.floor(
+              ((lon - data.lon.min) / (data.lon.max - data.lon.min)) *
+                (data.dimensions.lon - 1)
+            )
+            var latIndex = Math.floor(
+              ((lat - data.lat.min) / (data.lat.max - data.lat.min)) *
+                (data.dimensions.lat - 1)
+            )
+            var index = latIndex * data.dimensions.lon + lonIndex
+
+            // 获取对应的数据
+            var H = data.H.array[index]
+            var U = data.U.array[index]
+            var V = data.V.array[index]
+            var W = data.W.array[index]
+
+            // 输出点击位置的数据
+            console.log(`点击位置: 经度=${lon}, 纬度=${lat}`)
+            console.log(`H=${H}, U=${U}, V=${V}, W=${W}`)
+          } else {
+            console.log('点击位置不在数据范围内')
+          }
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
+    },
+    //加载粒子
     loadParticle(url) {
       var viewer = this.viewer
 
       // 粒子系统配置
       const systemOptions = {
-        offset: { lon: 100000, lat: 100000, lev: 0 },
         maxParticles: 250000, // 最大粒子数(会自动取平方数)
         particleHeight: 1000.0, // 粒子高度
         fadeOpacity: 0.996, // 拖尾透明度
@@ -75,11 +145,6 @@ export default {
         dynamic: true // 是否动态运行
       }
 
-      // 粒子颜色色带
-      // const colorTable = [
-      //   [0.015686, 0.054902, 0.847059],
-      //   [0.12549, 0.313725, 1.0]
-      // ]
       // 粒子颜色色带
       const colorTable = [
         [0.015686, 0.054902, 0.847059], // 深蓝色，表示低速
@@ -102,7 +167,7 @@ export default {
             fields: {
               U: 'water_u',
               V: 'water_v',
-              H: 'water_u',
+              H: 'hs',
               W: 'water_u'
             }
           })
@@ -110,9 +175,15 @@ export default {
           // particleObj.data.H.forEach((element) => {
           //   element = 10000
           // })
-          console.log(particleObj)
-          particleObj.init().then(() => {
+          //获取数据
+
+          particleObj.init().then((res) => {
+            // 将 H.array 中的所有值替换为统一值，例如 10000
+            // for (let i = 0; i < particleObj.data.H.array.length; i++) {
+            //   particleObj.data.H.array[i] = 1000000.00584891
+            // }
             particleObj.show()
+            this.addClickHandler(particleObj.data)
           })
           // 更新粒子系统配置的回调函数
           function updateOptions() {
@@ -127,7 +198,7 @@ export default {
             .add(systemOptions, 'maxParticles', 1000, 10000)
             .onChange(updateOptions)
           gui
-            .add(systemOptions, 'particleHeight', 0, 5000)
+            .add(systemOptions, 'particleHeight', 0, 5000000)
             .onChange(updateOptions)
           gui
             .add(systemOptions, 'fadeOpacity', 0.9, 1.0)
@@ -160,42 +231,44 @@ export default {
       // particleObj.hide() // 停止粒子系统
       // particleObj.remove() // 移除粒子系统
     },
-    loadGeoJson(url) {
-      fetch(url)
-        .then((response) => response.json())
-        .then((data) => {
-          data.features.forEach((feature) => {
-            const geometry = feature.geometry
-            const properties = feature.properties
-
-            if (geometry.type === 'Polygon') {
-              this.addPolygon(geometry.coordinates, properties)
-            } else if (geometry.type === 'MultiPolygon') {
-              this.addMultiPolygon(geometry.coordinates, properties)
+    async addGeojson() {
+      var viewer = this.viewer
+      // const response = await fetch()
+      // const geojson = await response.json()
+      // const features = geojson.features
+      // 'https://oin-hotosm.s3.amazonaws.com/56f9b5a963ebf4bc00074e70/0/56f9c2d42b67227a79b4faec.tif'
+      const provider = await TIFFImageryProvider.fromUrl('/json/U_Layer1.tif', {
+        projFunc: (code) => {
+          if (code === 32759) {
+            proj4.defs(
+              'EPSG:32759',
+              '+proj=utm +zone=59 +south +datum=WGS84 +units=m +no_defs +type=crs'
+            )
+            return {
+              project: proj4('EPSG:4326', 'EPSG:32759').forward,
+              unproject: proj4('EPSG:4326', 'EPSG:32759').inverse
             }
-          })
-        })
-    },
-    addPolygon(coordinates, properties) {
-      console.log('Polygon')
-      const positions = Cesium.Cartesian3.fromDegreesArray(
-        coordinates[0].flat()
-      )
-      const entity = {
-        polygon: {
-          hierarchy: new Cesium.PolygonHierarchy(positions),
-          material: Cesium.Color.RED.withAlpha(0.5),
-          height: properties.height || 1000
+          } else if (code === 32760) {
+            proj4.defs(
+              'EPSG:32760',
+              '+proj=utm +zone=60 +south +datum=WGS84 +units=m +no_defs +type=crs'
+            )
+            return {
+              project: proj4('EPSG:4326', 'EPSG:32760').forward,
+              unproject: proj4('EPSG:4326', 'EPSG:32760').inverse
+            }
+          } else if (code === 4326) {
+            // EPSG:4326 不需要转换，因为它是 WGS 84，通常用于全局地图数据
+            return {
+              project: (coords) => coords, // 直接返回原始坐标
+              unproject: (coords) => coords // 直接返回原始坐标
+            }
+          }
+          // 处理其他投影代码，或者抛出错误
+          throw new Error(`Unsupported projection code: EPSG:${code}`)
         }
-      }
-      this.entities.push(entity)
-    },
-    addMultiPolygon(coordinates, properties) {
-      // console.log('Multi')
-      coordinates.forEach((polygon) => {
-        console.log(polygon)
-        this.addPolygon(polygon, properties)
       })
+      viewer.imageryLayers.addImageryProvider(provider)
     }
   },
   //隐藏海洋
