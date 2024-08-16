@@ -15,9 +15,11 @@
     "cesium-particle": "^0.9.1",
     "core-js": "3.25.0",
     "dat.gui": "^0.7.9",
+    "element-ui": "^2.15.14",
     "proj4": "^2.12.0",
     "tiff-imagery-provider": "^2.12.1",
     "vue": "2.7.10",
+    "vue-drag-resize": "^1.5.4",
     "vue-router": "3.6.5",
     "vuex": "3.6.2"
   },
