@@ -3,10 +3,11 @@ import * as Cesium from 'cesium'
 import Particle3D from './src/modules/particle3D.js'
 /* eslint-disable */
 //加载粒子
+// 声明一个全局变量 particleObj
+let particleObj = null
 
 function loadParticle(url) {
   var viewer = window.viewer
-  console.log(viewer.scene)
 
   // 粒子系统配置
   const systemOptions = {
@@ -35,7 +36,7 @@ function loadParticle(url) {
     .then((response) => response.blob())
     .then((blob) => {
       // 将 blob 传递给 Particle3D
-      const particleObj = new Particle3D(viewer, {
+      particleObj = new Particle3D(viewer, {
         input: blob,
         colorTable: colorTable,
 
@@ -48,7 +49,7 @@ function loadParticle(url) {
           W: ''
         }
       })
-      console.log(particleObj)
+      // console.log(particleObj)
       // particleObj.data.H.forEach((element) => {
       //   element = 10000
       // })
@@ -61,27 +62,34 @@ function loadParticle(url) {
         // }
         particleObj.show()
         addClickHandler(particleObj.data)
+        addGUI()
+        // particleObj.remove()
       })
+
       // 更新粒子系统配置的回调函数
       function updateOptions() {
         particleObj.optionsChange(systemOptions)
       }
+      function addGUI() {
+        // 初始化dat.GUI
+        const gui = new dat.GUI()
 
-      // 初始化dat.GUI
-      const gui = new dat.GUI()
+        // 添加控制面板选项
+        gui
+          .add(systemOptions, 'maxParticles', 1000, 10000)
+          .onChange(updateOptions)
+        gui
+          .add(systemOptions, 'particleHeight', 0, 5000000)
+          .onChange(updateOptions)
+        gui.add(systemOptions, 'fadeOpacity', 0.9, 1.0).onChange(updateOptions)
+        gui.add(systemOptions, 'dropRate', 0.0, 0.1).onChange(updateOptions)
+        gui.add(systemOptions, 'dropRateBump', 0.0, 0.1).onChange(updateOptions)
+        gui.add(systemOptions, 'speedFactor', 0.1, 5.0).onChange(updateOptions)
+        gui.add(systemOptions, 'lineWidth', 1.0, 10.0).onChange(updateOptions)
+        gui.close()
+      }
 
-      // 添加控制面板选项
-      gui
-        .add(systemOptions, 'maxParticles', 1000, 10000)
-        .onChange(updateOptions)
-      gui
-        .add(systemOptions, 'particleHeight', 0, 5000000)
-        .onChange(updateOptions)
-      gui.add(systemOptions, 'fadeOpacity', 0.9, 1.0).onChange(updateOptions)
-      gui.add(systemOptions, 'dropRate', 0.0, 0.1).onChange(updateOptions)
-      gui.add(systemOptions, 'dropRateBump', 0.0, 0.1).onChange(updateOptions)
-      gui.add(systemOptions, 'speedFactor', 0.1, 5.0).onChange(updateOptions)
-      gui.add(systemOptions, 'lineWidth', 1.0, 10.0).onChange(updateOptions)
+      return particleObj
     })
 
   // systemOptions.fadeOpacity = 0.9
@@ -144,7 +152,17 @@ function addClickHandler(data) {
     }
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
 }
+
+function removeParticle() {
+  if (particleObj) {
+    particleObj.remove()
+    particleObj = null
+  } else {
+    console.log('粒子系统未加载或已被移除')
+  }
+}
 export default {
   loadParticle,
-  addClickHandler
+  addClickHandler,
+  removeParticle
 }
