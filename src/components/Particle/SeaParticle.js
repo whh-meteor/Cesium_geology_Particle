@@ -1,6 +1,6 @@
 import * as dat from 'dat.gui'
 import * as Cesium from 'cesium'
-import { Particle3D } from 'cesium-particle'
+import Particle3D from './src/modules/particle3D.js'
 /* eslint-disable */
 //加载粒子
 
@@ -44,7 +44,7 @@ function loadParticle(url) {
           U: 'water_u',
           V: 'water_v',
           tem: 'tem',
-          H: '',
+          H: 'dem',
           W: ''
         }
       })
@@ -130,9 +130,14 @@ function addClickHandler(data) {
         var V = data.V.array[index]
         var W = data.W.array[index]
         var tem = data.tem.array[index]
+        var dem = data.dem.array[index]
+        var hs = data.hs.array[index]
+        var dirm = data.dirm.array[index]
         // 输出点击位置的数据
         console.log(`点击位置: 经度=${lon}, 纬度=${lat}`)
-        console.log(`H=${H}, U=${U}, V=${V}, W=${W}, tem = ${tem}`)
+        console.log(
+          `H=${H}, U=${U}, V=${V}, W=${W}, tem = ${tem},dem = ${dem},dirm = ${dirm},hs = ${hs}`
+        )
       } else {
         console.log('点击位置不在数据范围内')
       }

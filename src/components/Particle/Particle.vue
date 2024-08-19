@@ -17,7 +17,7 @@ export default {
 
   methods: {
     init() {
-      SeaParticle.loadParticle('nc/4_result_00.nc')
+      SeaParticle.loadParticle('nc/4_result_11.nc')
     }
   }
 }
