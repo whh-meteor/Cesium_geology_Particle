@@ -38,7 +38,8 @@ export default {
     init() {
       UnderSeaLayer.initGUI(this.config, this.globalConfig, this.terrainOptions)
       UnderSeaLayer.LoadGeologicalLayer(
-        `/json/${this.config.selectedTerrain}`,
+        // `/json/${this.config.selectedTerrain}`,
+        `https://whh-meteor.github.io/Cesium_geology_Particle/json/${this.config.selectedTerrain}`,
         this.config.offset,
         this.config.scale,
         this.config.color
